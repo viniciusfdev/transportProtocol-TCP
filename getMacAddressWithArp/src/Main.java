@@ -36,7 +36,7 @@ public class Main {
         
         Runtime run = Runtime.getRuntime();
         String commPing = "ping "+ipAddress+"  -c 3";
-        String commArp = "arp -a";
+        String commArp = "arp -a "+ipAddress;
         
         try {
             
