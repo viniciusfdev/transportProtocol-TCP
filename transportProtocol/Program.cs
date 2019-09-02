@@ -38,31 +38,19 @@ namespace transportProtocol{
             try {
                 int port = 11111;
                 byte[] bytes = new Byte[1024];
-                IPHostEntry ipHost = Dns.GetHostEntry(Dns.GetHostName()); 
-                IPAddress ipAddr = ipHost.AddressList[0]; 
-                IPEndPoint localEndPoint = new IPEndPoint(ipAddr, port); 
-            
-                // Creation TCP/IP Socket using  
-                // Socket Class Costructor 
-                Socket socket = new Socket(ipAddr.AddressFamily, SocketType.Stream, ProtocolType.Tcp); 
-                socket.Bind(new IPEndPoint(ipAddr, port)); //associa um endereco a network do server
+                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp); 
+                socket.Bind(new IPEndPoint(IPAddress.Any, port));
                 socket.Listen(10);    //coloca o servidor em estado de recebimento de conexoes - 10 tamanho da fila
 
                 while (true) {                     
                     Console.WriteLine("Waiting connection ... ");
-                    Socket clientSocket = socket.Accept(); //recebe a conexao do cliente
+                    Socket clientSocket = socket.Accept();              //recebe a conexao do cliente
                     int numByte = clientSocket.Receive(bytes); 
                     String data = Encoding.ASCII.GetString(bytes, 0, numByte); //show PDU
-                
-                    Console.WriteLine("Data receive from");
+                    Console.WriteLine("Data receive from: "+clientSocket.RemoteEndPoint.ToString());
+                    System.Console.WriteLine(data);
                     byte[] msgAnswer = Encoding.ASCII.GetBytes("Data receive"); 
-
-                    //responde o client 
                     clientSocket.Send(msgAnswer);
-
-                    clientSocket.Shutdown(SocketShutdown.Both);
-                    clientSocket.Close(); //fecha a conexao com o cliente
-
                 } 
                 return true;
             }catch (ArgumentNullException e){
@@ -94,12 +82,9 @@ namespace transportProtocol{
                 socket.Send(msgSent); 
                 registerLog("Send message to "+socket.RemoteEndPoint.ToString());
 
-                //resposta do servidor
-                socket.Receive(msgReceiv);
-                registerLog("Receive server answer");
-
                 int byteRecv = socket.Receive(msgReceiv); 
                 Console.WriteLine(Encoding.ASCII.GetString(msgReceiv, 0, byteRecv)); 
+                registerLog("Receive server answer");
 
                 socket.Close();
 
@@ -138,22 +123,23 @@ namespace transportProtocol{
         public Boolean receive(){
             int port = 11111;
             byte[] bytes = new Byte[1024];
-            IPHostEntry ipHost = Dns.GetHostEntry(Dns.GetHostName()); 
-            IPAddress ipAddr = ipHost.AddressList[0]; 
-            IPEndPoint localEndPoint = new IPEndPoint(ipAddr, port);
+            IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
             EndPoint endPoint = (EndPoint)localEndPoint;
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
             Object o = new Object();
 
             try{
-                socket.BeginReceiveFrom(bytes, 0, bytes.Length, SocketFlags.None, ref endPoint, (ar) =>
-                {
-                    socket = (Socket)ar.AsyncState;
-                    int byteRecv = socket.EndSend(ar);
-                    
-                }, o);
-
+                socket.Bind(localEndPoint);
+                
+                while(true){
+                    socket.BeginReceiveFrom(bytes, 0, bytes.Length, SocketFlags.None, ref endPoint, (ar) =>
+                    {
+                        socket = (Socket)ar.AsyncState;
+                        int byteRecv = socket.EndSend(ar);
+                        System.Console.WriteLine();
+                    }, o);
+                }
             }catch (ArgumentNullException e){
                 Console.WriteLine("Argument Exception: {0}", e);
             }catch (SocketException e){

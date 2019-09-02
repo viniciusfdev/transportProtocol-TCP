@@ -34,3 +34,11 @@ Intialize TCP Process
 exit TCP process
 Intialize TCP Process
 exit TCP process
+Intialize TCP Process
+exit TCP process
+Intialize TCP Process
+exit TCP process
+Intialize UDP Process
+exit UDP process
+Intialize UDP Process
+exit UDP process
