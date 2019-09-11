@@ -3,6 +3,8 @@ using System.Text;
 using System.Net; 
 using System.Net.Sockets;
 using System.IO;
+using System.Threading;
+using System.Collections.Generic;
 
 namespace transportProtocol{
     class Program{
@@ -11,85 +13,133 @@ namespace transportProtocol{
             Console.WriteLine("Pick your type connection: (1) Connection Oriented - (2) Non Connection Oriented - (3) EXIT");
             choice = Int32.Parse(Console.ReadLine());
             if(choice == 1){
-                receiveFromLayer(false);
-                Connection con = new Connection();
-                registerLog("Intialize Connection Oriented Process");
-                registerLog("exit Connection Oriented process");
+                TransportEngine te = new TransportEngine(choice);
+                te.registerLog("Intialize Connection Oriented Process");
+                te.listening();
+                te.registerLog("exit Connection Oriented process");
             }else if(choice == 2){
-                receiveFromLayer(); 
+                TransportEngine te = new TransportEngine(choice);
                 Console.WriteLine("UDP");
-                Connectionless conl = new Connectionless();
-                registerLog("Intialize Non Connection Oriented Process");
-                registerLog("exit Non Connection Oriented process");
+                te.registerLog("Intialize Non Connection Oriented Process");
+                te.listening();
+                te.registerLog("exit Non Connection Oriented process");
             }else{
                 Console.WriteLine("exit process...");
                 return;
             }
         }
+    }
 
-        public static Connection receiveFromLayer(Boolean isNCO){
-           
-            try {
-                int port = 11111;
-                byte[] bytes = new Byte[1024];
-                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp); 
-                socket.Bind(new IPEndPoint(IPAddress.Any, port));
-                socket.Listen(10);    //coloca o servidor em estado de recebimento de conexoes - 10 tamanho da fila
+    class TransportEngine{
+        private Boolean sending = false;
+        private String ipDest;
+        private String ipOri;
+        private int typeConn = 1;
+        private String ackSyn = "00";
+        private Byte [] bytes;
+        //00 = SYN client
+        //01 = SYN-ACK server
+        //10 = ACK client
+        //11 = ESTABLISHED CONNECTION
 
-                while (true) {                     
-                    Console.WriteLine("Waiting connection ... ");
-                    Socket clientSocket = socket.Accept();              //recebe a conexao do cliente
-                    int numByte = clientSocket.Receive(bytes); 
-                    String data = Encoding.ASCII.GetString(bytes, 0, numByte);
-                    Console.WriteLine("Data receive from: "+clientSocket.RemoteEndPoint.ToString());
-                    System.Console.WriteLine(data);
-                    byte[] msgAnswer = Encoding.ASCII.GetBytes("Data receive"); 
-                    clientSocket.Send(msgAnswer);
-                } 
-                return new Connection();
-            }catch (ArgumentNullException e){
-                Console.WriteLine("Argument Exception: {0}", e);
-            }catch (SocketException e){
-                Console.WriteLine("SocketException: {0}", e);
-            }   
-
-            return null;
+        public TransportEngine(int typeConn){
+            this.typeConn = typeConn;
         }
-
-        public static void sendToLayer(){
+        
+        public void listening(){
             try{
-                //StreamReader rd = new StreamReader(@'data');
-                byte[] msgSent = Encoding.ASCII.GetBytes("Test Client<EOF>"); 
-                byte[] msgReceiv = new byte[1024];
-                int port = 11111;
-                String ipAddress = "192.168.0.5";
-                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                socket.Connect(ipAddress, port);
-
-                if (!socket.Connected){
-                    Console.WriteLine("unable to connect with another layer");
-                    return;
-                }else{
-                    registerLog("Socket connected to -> {0} "+socket.RemoteEndPoint.ToString());                
-                }
+                while(true){
+                    if(new System.IO.FileInfo(@"../transTop.txt").Length > 0 && !this.sending){
+                        this.sending = true;
+                        StreamReader transTop = new StreamReader(@"../transTop.txt");
+                        if(this.typeConn == 1){
+                            //three hand shake control
+                            switch(ackSyn){
+                                default: //00 - SYN
+                                    StreamWriter wr = new StreamWriter(@"../redeTop.txt");
+                                    wr.WriteLine("SYN");
+                                    wr.Close();
+                                break;
+                            }
+                        }else{
+                            StreamWriter wr = new StreamWriter(@"../redeTop.txt");
+                            wr.WriteLine("DATA FINALLY ARRIVE - UDP");
+                        }
+                        transTop.Close();
+                        
+                        //limpa o arquivo
+                        StreamWriter transTopClean = new StreamWriter(@"../transTop.txt");
+                        transTopClean.Flush();
+                        transTopClean.Close();
+                    }
+                    if(new System.IO.FileInfo(@"../transDown.txt").Length > 0){
+                        StreamWriter wr;
+                        StreamReader transDown = new StreamReader(@"../transDown.txt");
+                        
+                        if(this.typeConn == 1){
+                            //three hand shake control
+                            switch(ackSyn){
+                                case "01"://SYN-ACK
+                                    wr = new StreamWriter(@"../redeTop.txt");
+                                    wr.WriteLine("ACK");
+                                    wr.Close();
+                                break;
+                                case "10"://ACK
+                                    wr = new StreamWriter(@"../redeTop.txt");
+                                    wr.WriteLine("ESTABLISHED");
+                                    wr.Close();
+                                    this.sending = false;
+                                break;
+                                case "11"://ESTABLISHED
+                                    wr = new StreamWriter(@"../appDown.txt");
+                                    wr.WriteLine("DATA FINALLY ARRIVE - TCP");
+                                    wr.Close();
+                                break;
+                                default: //00 - SYN
+                                    wr = new StreamWriter(@"../redeTop.txt");
+                                    wr.WriteLine("SYN-ACK");
+                                    wr.Close();
+                                break;
+                            }
+                        }else{
+                            wr = new StreamWriter(@"../appDown.txt");
+                            wr.WriteLine("DATA FINALLY ARRIVE - UDP");
+                        }
+                        transDown.Close();
+                        
+                        //limpa o arquivo
+                        StreamWriter transTopClean = new StreamWriter(@"../transDown.txt", true);
+                        transTopClean.Flush();
+                        transTopClean.Close();
+                    }
+                    Thread.Sleep(1000);
+                } 
+            }
+            catch (System.Exception){
                 
-                socket.Send(msgSent); 
-                registerLog("Send message to "+socket.RemoteEndPoint.ToString());
-
-                int byteRecv = socket.Receive(msgReceiv); 
-                Console.WriteLine(Encoding.ASCII.GetString(msgReceiv, 0, byteRecv)); 
-                registerLog("Receive server answer");
-
-                socket.Close();
-
-            }catch (ArgumentNullException e){
-                Console.WriteLine("Argument Exception: {0}", e);
-            }catch (SocketException e){
-                Console.WriteLine("SocketException: {0}", e);
-            }    
+            }
+        }
+        public string binaryToString(string data){
+            List<Byte> byteList = new List<Byte>();
+        
+            for (int i = 0; i < data.Length; i += 8)
+            {
+                byteList.Add(Convert.ToByte(data.Substring(i, 8), 2));
+            }
+            return Encoding.ASCII.GetString(byteList.ToArray());
         }
 
-        public static void registerLog(String msg){
+        public string stringToBinary(string data){
+            StringBuilder sb = new StringBuilder();
+        
+            foreach (char c in data.ToCharArray())
+            {
+                sb.Append(Convert.ToString(c, 2).PadLeft(8, '0'));
+            }
+            return sb.ToString();
+        }
+
+        public void registerLog(String msg){
             DateTime now = DateTime.Now;
             String nowDate = ""+now.Date.Year+"_"+now.Date.Month+"_"+now.Date.Day;
             String fileName = "log_"+nowDate+".txt";
@@ -97,27 +147,8 @@ namespace transportProtocol{
             wr.WriteLine(msg);
             wr.Close();
         }
-    }
 
-    class Connection{
-        public Connection(){
-        }
-
-        public Boolean validate(){
-            Program.registerLog("Start Validation");
-            return false;
-        }
-
-        public void separateBuffer(){
-        }
-    }
-
-    class Connectionless{
-        public Connectionless(){
-        }
-
-        public void separateBuffer(){
-
+        public void separateBytes(){
         }
     }
 }
