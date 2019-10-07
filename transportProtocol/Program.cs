@@ -31,7 +31,7 @@ namespace transportProtocol{
     }
 
     class TransportEngine{
-        private Boolean sending = false;
+        private Boolean working = false;
         private String ipDest;
         private String ipOri;
         private int typeConn = 1;
@@ -49,9 +49,16 @@ namespace transportProtocol{
         public void listening(){
             try{
                 while(true){
-                    if(new System.IO.FileInfo(@"../transTop.txt").Length > 0 && !this.sending){
-                        this.sending = true;
+                    Console.WriteLine("Listening");
+                    if(new System.IO.FileInfo(@"../transTop.txt").Length > 0 && !this.working){
+                        Console.WriteLine("Receive from top layer");
                         StreamReader transTop = new StreamReader(@"../transTop.txt");
+                        this.working = true;
+                        String line = "";
+                        String data = "";
+                        while((line = transTop.ReadLine()) != null){
+                            data = data + line;
+                        }
                         if(this.typeConn == 1){
                             //three hand shake control
                             switch(ackSyn){
@@ -59,6 +66,7 @@ namespace transportProtocol{
                                     StreamWriter wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine("SYN");
                                     wr.Close();
+                                    Console.WriteLine("send to bottom layer");
                                 break;
                             }
                         }else{
@@ -71,11 +79,13 @@ namespace transportProtocol{
                         StreamWriter transTopClean = new StreamWriter(@"../transTop.txt");
                         transTopClean.Flush();
                         transTopClean.Close();
+                        this.working = false;
                     }
-                    if(new System.IO.FileInfo(@"../transDown.txt").Length > 0){
+                    if(new System.IO.FileInfo(@"../transDown.txt").Length > 0 && !this.working){
+                        Console.WriteLine("Receive from bottom layer");
                         StreamWriter wr;
                         StreamReader transDown = new StreamReader(@"../transDown.txt");
-                        
+                        working = true;
                         if(this.typeConn == 1){
                             //three hand shake control
                             switch(ackSyn){
@@ -88,7 +98,7 @@ namespace transportProtocol{
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine("ESTABLISHED");
                                     wr.Close();
-                                    this.sending = false;
+                                    this.working = false;
                                 break;
                                 case "11"://ESTABLISHED
                                     wr = new StreamWriter(@"../appDown.txt");
@@ -108,11 +118,12 @@ namespace transportProtocol{
                         transDown.Close();
                         
                         //limpa o arquivo
-                        StreamWriter transTopClean = new StreamWriter(@"../transDown.txt", true);
-                        transTopClean.Flush();
-                        transTopClean.Close();
+                        StreamWriter transDownClean = new StreamWriter(@"../transDown.txt");
+                        transDownClean.Flush();
+                        transDownClean.Close();
+                        working = false;
                     }
-                    Thread.Sleep(1000);
+                    Thread.Sleep(2000);
                 } 
             }
             catch (System.Exception){
