@@ -54,17 +54,12 @@ namespace transportProtocol{
                         Console.WriteLine("Receive from top layer");
                         StreamReader transTop = new StreamReader(@"../transTop.txt");
                         this.working = true;
-                        String line = "";
-                        String data = "";
-                        while((line = transTop.ReadLine()) != null){
-                            data = data + line;
-                        }
                         if(this.typeConn == 1){
                             //three hand shake control
                             switch(ackSyn){
                                 default: //00 - SYN
                                     StreamWriter wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("SYN");
+                                    wr.WriteLine("00SYN");
                                     wr.Close();
                                     Console.WriteLine("send to bottom layer");
                                 break;
@@ -72,6 +67,8 @@ namespace transportProtocol{
                         }else{
                             StreamWriter wr = new StreamWriter(@"../redeTop.txt");
                             wr.WriteLine("DATA FINALLY ARRIVE - UDP");
+                            Console.WriteLine("send to bottom layer");
+                            wr.Close();
                         }
                         transTop.Close();
                         
@@ -79,41 +76,49 @@ namespace transportProtocol{
                         StreamWriter transTopClean = new StreamWriter(@"../transTop.txt");
                         transTopClean.Flush();
                         transTopClean.Close();
-                        this.working = false;
                     }
-                    if(new System.IO.FileInfo(@"../transDown.txt").Length > 0 && !this.working){
+                    if(new System.IO.FileInfo(@"../transDown.txt").Length > 0){
                         Console.WriteLine("Receive from bottom layer");
                         StreamWriter wr;
                         StreamReader transDown = new StreamReader(@"../transDown.txt");
-                        working = true;
+                        char []data = transDown.ReadToEnd().ToCharArray();
+                        ackSyn = ""+data[0]+data[1];
+                        Console.WriteLine(ackSyn);
                         if(this.typeConn == 1){
                             //three hand shake control
                             switch(ackSyn){
                                 case "01"://SYN-ACK
                                     wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("ACK");
+                                    wr.WriteLine("10ACK");
+                                    Console.WriteLine("send to bottom layer");
                                     wr.Close();
                                 break;
                                 case "10"://ACK
                                     wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("ESTABLISHED");
+                                    wr.WriteLine("11ESTABLISHED");
+                                    Console.WriteLine("send to bottom layer");
                                     wr.Close();
                                     this.working = false;
                                 break;
                                 case "11"://ESTABLISHED
                                     wr = new StreamWriter(@"../appDown.txt");
                                     wr.WriteLine("DATA FINALLY ARRIVE - TCP");
+                                    Console.WriteLine("send to Top layer");
                                     wr.Close();
+                                    this.working = false;
                                 break;
                                 default: //00 - SYN
                                     wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("SYN-ACK");
+                                    wr.WriteLine("01SYN-ACK");
+                                    Console.WriteLine("send to bottom layer");
                                     wr.Close();
                                 break;
                             }
                         }else{
                             wr = new StreamWriter(@"../appDown.txt");
                             wr.WriteLine("DATA FINALLY ARRIVE - UDP");
+                            Console.WriteLine("send to Top layer");
+                            wr.Close();
                         }
                         transDown.Close();
                         
@@ -121,7 +126,6 @@ namespace transportProtocol{
                         StreamWriter transDownClean = new StreamWriter(@"../transDown.txt");
                         transDownClean.Flush();
                         transDownClean.Close();
-                        working = false;
                     }
                     Thread.Sleep(2000);
                 } 
