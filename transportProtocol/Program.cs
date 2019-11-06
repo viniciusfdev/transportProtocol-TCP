@@ -32,8 +32,14 @@ namespace transportProtocol{
 
     class TransportEngine{
         private Boolean working = false;
-        private String ipDest;
-        private String ipOri;
+        private String dstIP;
+        private String srcIP;
+        private String srcPort;
+        private String dstPort;
+        private String data = "";
+        private int segSize = 0;
+        private int seq = 1;
+
         private int typeConn = 1;
         private String ackSyn = "00";
         private Byte [] bytes;
@@ -41,7 +47,12 @@ namespace transportProtocol{
         //01 = SYN-ACK server
         //10 = ACK client
         //11 = ESTABLISHED CONNECTION
+        
+        //**TCP PDU EXAMPLE TEST*/
+        //192.162.1.5 128.50.13.10 500 200 1 00 | DADO
 
+        //**UDP PDU EXAMPLE TEST*/
+        //192.162.1.5 128.50.13.10 500 200 10 00 | DADO
         public TransportEngine(int typeConn){
             this.typeConn = typeConn;
         }
@@ -53,21 +64,63 @@ namespace transportProtocol{
                     if(new System.IO.FileInfo(@"../transTop.txt").Length > 0 && !this.working){
                         Console.WriteLine("Receive from top layer");
                         StreamReader transTop = new StreamReader(@"../transTop.txt");
-                        this.working = true;
+                        StreamWriter wr = new StreamWriter(@"../redeTop.txt");
+                        String PDU = transTop.ReadToEnd();
+                        List<String> labels = new List<String>(PDU.Split(" "));
+                        data = "";
+                        srcIP = labels[0];
+                        dstIP= labels[1];
+                        srcPort = labels[2];
+                        dstPort = labels[3];
+                        
                         if(this.typeConn == 1){
+                            if(ackSyn == "00"){
+                                labels.Insert(4, seq.ToString());
+                                labels.Insert(5, ackSyn);
+                            } 
+                            else{
+                                seq = Convert.ToInt32(labels[4])+1;
+                                ackSyn = labels[5];
+                            } 
+                            if(labels.Count > 6){
+                                foreach (String s in (labels.GetRange(6, labels.Count-6))){
+                                    data += s+" ";
+                                }
+                            }
+
                             //three hand shake control
                             switch(ackSyn){
-                                default: //00 - SYN
-                                    StreamWriter wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("00SYN");
-                                    wr.Close();
+                                case "10":
                                     Console.WriteLine("send to bottom layer");
+                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                          +srcPort+" "+dstPort+" "
+                                          +seq+" "+ackSyn);
+                                    wr.WriteLine(PDU);
+                                    wr.Close();
+                                break;
+                                default: //00 - SYN
+                                    Console.WriteLine("send to bottom layer");
+                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                          +srcPort+" "+dstPort+" "
+                                          +seq+" "+"00");
+                                    wr.WriteLine(PDU);
+                                    wr.Close();
                                 break;
                             }
                         }else{
-                            StreamWriter wr = new StreamWriter(@"../redeTop.txt");
-                            wr.WriteLine("DATA FINALLY ARRIVE - UDP");
+                            labels.Insert(4, ((labels.GetRange(4, labels.Count-4)).Count).ToString());
+                            if(labels.Count > 5){
+                                foreach (String s in (labels.GetRange(5, labels.Count-5))){
+                                    data += s+" ";
+                                }
+                            }
+                            
+                            //bypass
                             Console.WriteLine("send to bottom layer");
+                            PDU = (srcIP+" "+" "+dstIP+" "
+                                  +srcPort+" "+dstPort+" "
+                                  +segSize+" "+data);
+                            wr.WriteLine(PDU);
                             wr.Close();
                         }
                         transTop.Close();
@@ -81,43 +134,74 @@ namespace transportProtocol{
                         Console.WriteLine("Receive from bottom layer");
                         StreamWriter wr;
                         StreamReader transDown = new StreamReader(@"../transDown.txt");
-                        char []data = transDown.ReadToEnd().ToCharArray();
-                        ackSyn = ""+data[0]+data[1];
-                        Console.WriteLine(ackSyn);
+                        String PDU = transDown.ReadToEnd();
+                        String []labels = PDU.Split(" ");
+
+                        srcIP = labels[0];
+                        dstIP= labels[1];
+                        srcPort = labels[2];
+                        dstPort = labels[3];
+
                         if(this.typeConn == 1){
+                            seq = Convert.ToInt32(labels[4]);
+                            ackSyn = labels[5];
+                            
+                            String []aux = new String[labels.Length-6];
+                            if(labels.Length > 6){
+                                Array.Copy(labels, 6, aux, 0, labels.Length-6);
+                                foreach (String s in aux){
+                                    data += s+" ";
+                                }
+                            }
+
                             //three hand shake control
                             switch(ackSyn){
                                 case "01"://SYN-ACK
-                                    wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("10ACK");
+                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                          +srcPort+" "+dstPort+" "
+                                          +seq+" "+"10");
                                     Console.WriteLine("send to bottom layer");
+                                    wr = new StreamWriter(@"../redeTop.txt");
+                                    wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
                                 case "10"://ACK
-                                    wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("11ESTABLISHED");
+                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                          +srcPort+" "+dstPort+" "
+                                          +seq+" "+"10"+" "+data);
                                     Console.WriteLine("send to bottom layer");
-                                    wr.Close();
-                                    this.working = false;
-                                break;
-                                case "11"://ESTABLISHED
                                     wr = new StreamWriter(@"../appDown.txt");
-                                    wr.WriteLine("DATA FINALLY ARRIVE - TCP");
-                                    Console.WriteLine("send to Top layer");
+                                    wr.WriteLine(PDU);
                                     wr.Close();
-                                    this.working = false;
                                 break;
                                 default: //00 - SYN
-                                    wr = new StreamWriter(@"../redeTop.txt");
-                                    wr.WriteLine("01SYN-ACK");
+                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                          +srcPort+" "+dstPort+" "
+                                          +seq+" "+"01");
                                     Console.WriteLine("send to bottom layer");
+                                    wr = new StreamWriter(@"../redeTop.txt");
+                                    wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
                             }
                         }else{
+                            segSize = Convert.ToInt32(labels[4]);
+                            
+                            String []aux = new String[labels.Length-5];
+                            if(labels.Length > 5){
+                                Array.Copy(labels, 5, aux, 0, labels.Length-5);
+                                foreach (String s in aux){
+                                    Console .Write (s +  " ");
+                                    data += s+" ";
+                                }
+                            }
+
+                            PDU = (srcIP+" "+" "+dstIP+" "
+                                  +srcPort+" "+dstPort+" "
+                                  +segSize+" "+data);
+                            Console.WriteLine("send to bottom layer");
                             wr = new StreamWriter(@"../appDown.txt");
-                            wr.WriteLine("DATA FINALLY ARRIVE - UDP");
-                            Console.WriteLine("send to Top layer");
+                            wr.WriteLine(PDU);
                             wr.Close();
                         }
                         transDown.Close();
@@ -161,9 +245,6 @@ namespace transportProtocol{
             StreamWriter wr = new StreamWriter(@fileName, true);
             wr.WriteLine(msg);
             wr.Close();
-        }
-
-        public void separateBytes(){
         }
     }
 }
