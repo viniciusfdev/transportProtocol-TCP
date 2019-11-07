@@ -67,17 +67,19 @@ namespace transportProtocol{
                         StreamWriter wr = new StreamWriter(@"../redeTop.txt");
                         String PDU = transTop.ReadToEnd();
                         List<String> labels = new List<String>(PDU.Split(" "));
-                        data = "";
+                        
                         srcIP = labels[0];
                         dstIP= labels[1];
                         srcPort = labels[2];
                         dstPort = labels[3];
                         
                         if(this.typeConn == 1){
+                        
                             if(ackSyn == "00"){
                                 labels.Insert(4, seq.ToString());
                                 labels.Insert(5, ackSyn);
-                            } 
+                            }
+                            
                             else{
                                 seq = Convert.ToInt32(labels[4])+1;
                                 ackSyn = labels[5];
@@ -92,7 +94,7 @@ namespace transportProtocol{
                             switch(ackSyn){
                                 case "10":
                                     Console.WriteLine("send to bottom layer");
-                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                    PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+ackSyn);
                                     wr.WriteLine(PDU);
@@ -100,7 +102,7 @@ namespace transportProtocol{
                                 break;
                                 default: //00 - SYN
                                     Console.WriteLine("send to bottom layer");
-                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                    PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+"00");
                                     wr.WriteLine(PDU);
@@ -117,7 +119,7 @@ namespace transportProtocol{
                             
                             //bypass
                             Console.WriteLine("send to bottom layer");
-                            PDU = (srcIP+" "+" "+dstIP+" "
+                            PDU = (srcIP+" "+dstIP+" "
                                   +srcPort+" "+dstPort+" "
                                   +segSize+" "+data);
                             wr.WriteLine(PDU);
@@ -135,21 +137,17 @@ namespace transportProtocol{
                         StreamWriter wr;
                         StreamReader transDown = new StreamReader(@"../transDown.txt");
                         String PDU = transDown.ReadToEnd();
-                        String []labels = PDU.Split(" ");
-
+                        List<String> labels = new List<String>(PDU.Split(" "));
                         srcIP = labels[0];
                         dstIP= labels[1];
                         srcPort = labels[2];
                         dstPort = labels[3];
 
-                        if(this.typeConn == 1){
-                            seq = Convert.ToInt32(labels[4]);
+                        if(this.typeConn == 1){                          
+                            seq = Convert.ToInt32(labels[4])+1;
                             ackSyn = labels[5];
-                            
-                            String []aux = new String[labels.Length-6];
-                            if(labels.Length > 6){
-                                Array.Copy(labels, 6, aux, 0, labels.Length-6);
-                                foreach (String s in aux){
+                            if(labels.Count > 6){
+                                foreach (String s in (labels.GetRange(6, labels.Count-6))){
                                     data += s+" ";
                                 }
                             }
@@ -157,7 +155,7 @@ namespace transportProtocol{
                             //three hand shake control
                             switch(ackSyn){
                                 case "01"://SYN-ACK
-                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                    PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+"10");
                                     Console.WriteLine("send to bottom layer");
@@ -166,7 +164,7 @@ namespace transportProtocol{
                                     wr.Close();
                                 break;
                                 case "10"://ACK
-                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                    PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+"10"+" "+data);
                                     Console.WriteLine("send to bottom layer");
@@ -175,7 +173,7 @@ namespace transportProtocol{
                                     wr.Close();
                                 break;
                                 default: //00 - SYN
-                                    PDU = (srcIP+" "+" "+dstIP+" "
+                                    PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+"01");
                                     Console.WriteLine("send to bottom layer");
@@ -184,19 +182,16 @@ namespace transportProtocol{
                                     wr.Close();
                                 break;
                             }
-                        }else{
-                            segSize = Convert.ToInt32(labels[4]);
+                        }else{                           
                             
-                            String []aux = new String[labels.Length-5];
-                            if(labels.Length > 5){
-                                Array.Copy(labels, 5, aux, 0, labels.Length-5);
-                                foreach (String s in aux){
-                                    Console .Write (s +  " ");
+                            labels.Insert(4, ((labels.GetRange(4, labels.Count-4)).Count).ToString());
+                            if(labels.Count > 5){
+                                foreach (String s in (labels.GetRange(5, labels.Count-5))){
                                     data += s+" ";
                                 }
                             }
 
-                            PDU = (srcIP+" "+" "+dstIP+" "
+                            PDU = (srcIP+" "+dstIP+" "
                                   +srcPort+" "+dstPort+" "
                                   +segSize+" "+data);
                             Console.WriteLine("send to bottom layer");
