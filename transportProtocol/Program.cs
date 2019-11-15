@@ -43,10 +43,12 @@ namespace transportProtocol{
         private int typeConn = 1;
         private String ackSyn = "00";
         private Byte [] bytes;
-        //00 = SYN client
-        //01 = SYN-ACK server
-        //10 = ACK client
-        //11 = ESTABLISHED CONNECTION
+        //000 = SYN client
+        //001 = SYN-ACK server
+        //010 = ACK client
+        //011 = FIM SYN
+        //100 = FIN ACK+ SYN
+        //101 = FIN ACK
         
         //**TCP PDU EXAMPLE TEST*/
         //192.162.1.5 128.50.13.10 500 200 1 00 | DADO
@@ -61,6 +63,20 @@ namespace transportProtocol{
             try{
                 while(true){
                     Console.WriteLine("Listening");
+                    if(new System.IO.FileInfo(@"../logout.txt").Length > 0){
+                        Console.WriteLine("Initiate fin conn");
+                        StreamWriter wr = new StreamWriter(@"../redeTop.txt");
+                        String PDU = "";
+                        PDU = (srcIP+" "+dstIP+" "
+                                +srcPort+" "+dstPort+" "
+                                +seq+" "+"011");
+                        wr.WriteLine(PDU);
+                        wr.Close();
+                        
+                        StreamWriter logoutClean = new StreamWriter(@"../logout.txt");
+                        logoutClean.Flush();
+                        logoutClean.Close();
+                    }
                     if(new System.IO.FileInfo(@"../transTop.txt").Length > 0 && !this.working){
                         Console.WriteLine("Receive from top layer");
                         StreamReader transTop = new StreamReader(@"../transTop.txt");
@@ -75,7 +91,7 @@ namespace transportProtocol{
                         
                         if(this.typeConn == 1){
                         
-                            if(ackSyn == "00"){
+                            if(ackSyn == "000"){
                                 labels.Insert(4, seq.ToString());
                                 labels.Insert(5, ackSyn);
                             }
@@ -92,7 +108,7 @@ namespace transportProtocol{
 
                             //three hand shake control
                             switch(ackSyn){
-                                case "10":
+                                case "010":
                                     Console.WriteLine("send to bottom layer");
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
@@ -100,11 +116,11 @@ namespace transportProtocol{
                                     wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
-                                default: //00 - SYN
+                                default: //000 - SYN
                                     Console.WriteLine("send to bottom layer");
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"00");
+                                          +seq+" "+"000");
                                     wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
@@ -154,28 +170,52 @@ namespace transportProtocol{
 
                             //three hand shake control
                             switch(ackSyn){
-                                case "01"://SYN-ACK
+                                case "001"://SYN-ACK
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"10");
+                                          +seq+" "+"010");
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
-                                case "10"://ACK
+                                case "010"://ACK
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"10"+" "+data);
+                                          +seq+" "+"010"+" "+data);
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../appDown.txt");
                                     wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
+                                case "011":
+                                    PDU = (srcIP+" "+dstIP+" "
+                                          +srcPort+" "+dstPort+" "
+                                          +seq+" "+"100");
+                                    Console.WriteLine("send to bottom layer");
+                                    wr = new StreamWriter(@"../redeTop.txt");
+                                    wr.WriteLine(PDU);
+                                    wr.Close();
+                                break;
+                                case "100":
+                                    PDU = (srcIP+" "+dstIP+" "
+                                          +srcPort+" "+dstPort+" "
+                                          +seq+" "+"101");
+                                    Console.WriteLine("Fim Connection layer");
+                                    wr = new StreamWriter(@"../finLogout.txt");
+                                    wr.WriteLine(PDU);
+                                    wr.Close();
+
+                                    StreamWriter transDownClean = new StreamWriter(@"../transDown.txt");
+                                    transDownClean.Flush();
+                                    transDownClean.Close();
+
+                                    System.Environment.Exit(0);
+                                break;
                                 default: //00 - SYN
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"01");
+                                          +seq+" "+"001");
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);

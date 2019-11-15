@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\GitHub\\transportProtocol-TCP\\transportProtocol\\transportProtocol.csproj": {}
+    "/home/vinicius/Desktop/faculdade/transportProtocol-TCP/transportProtocol/transportProtocol.csproj": {}
   },
   "projects": {
-    "D:\\GitHub\\transportProtocol-TCP\\transportProtocol\\transportProtocol.csproj": {
+    "/home/vinicius/Desktop/faculdade/transportProtocol-TCP/transportProtocol/transportProtocol.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\GitHub\\transportProtocol-TCP\\transportProtocol\\transportProtocol.csproj",
+        "projectUniqueName": "/home/vinicius/Desktop/faculdade/transportProtocol-TCP/transportProtocol/transportProtocol.csproj",
         "projectName": "transportProtocol",
-        "projectPath": "D:\\GitHub\\transportProtocol-TCP\\transportProtocol\\transportProtocol.csproj",
-        "packagesPath": "C:\\Users\\viv_l\\.nuget\\packages\\",
-        "outputPath": "D:\\GitHub\\transportProtocol-TCP\\transportProtocol\\obj\\",
+        "projectPath": "/home/vinicius/Desktop/faculdade/transportProtocol-TCP/transportProtocol/transportProtocol.csproj",
+        "packagesPath": "/home/vinicius/.nuget/packages/",
+        "outputPath": "/home/vinicius/Desktop/faculdade/transportProtocol-TCP/transportProtocol/obj/",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+          "/usr/share/dotnet/sdk/NuGetFallbackFolder"
         ],
         "configFilePaths": [
-          "C:\\Users\\viv_l\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "/home/vinicius/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "netcoreapp2.2"
