@@ -31,7 +31,7 @@ namespace transportProtocol{
     }
 
     class TransportEngine{
-        private Boolean working = false;
+        private int windowSize = 1000;
         private String dstIP;
         private String srcIP;
         private String srcPort;
@@ -39,10 +39,8 @@ namespace transportProtocol{
         private String data = "";
         private int segSize = 0;
         private int seq = 1;
-
         private int typeConn = 1;
-        private String ackSyn = "00";
-        private Byte [] bytes;
+        private String ackSyn = "000";
         //000 = SYN client
         //001 = SYN-ACK server
         //010 = ACK client
@@ -51,7 +49,7 @@ namespace transportProtocol{
         //101 = FIN ACK
         
         //**TCP PDU EXAMPLE TEST*/
-        //192.162.1.5 128.50.13.10 500 200 1 00 | DADO
+        //192.162.1.5 128.50.13.10 500 200 | DADO
 
         //**UDP PDU EXAMPLE TEST*/
         //192.162.1.5 128.50.13.10 500 200 10 00 | DADO
@@ -61,15 +59,18 @@ namespace transportProtocol{
         
         public void listening(){
             try{
+                StreamWriter transDownClean = null;
                 while(true){
                     Console.WriteLine("Listening");
                     if(new System.IO.FileInfo(@"../logout.txt").Length > 0){
                         Console.WriteLine("Initiate fin conn");
                         StreamWriter wr = new StreamWriter(@"../redeTop.txt");
                         String PDU = "";
+                        windowSize -= 100;
+
                         PDU = (srcIP+" "+dstIP+" "
                                 +srcPort+" "+dstPort+" "
-                                +seq+" "+"011");
+                                +seq+" "+windowSize+" 011");
                         wr.WriteLine(PDU);
                         wr.Close();
                         
@@ -77,7 +78,7 @@ namespace transportProtocol{
                         logoutClean.Flush();
                         logoutClean.Close();
                     }
-                    if(new System.IO.FileInfo(@"../transTop.txt").Length > 0 && !this.working){
+                    if(new System.IO.FileInfo(@"../transTop.txt").Length > 0){
                         Console.WriteLine("Receive from top layer");
                         StreamReader transTop = new StreamReader(@"../transTop.txt");
                         StreamWriter wr = new StreamWriter(@"../redeTop.txt");
@@ -89,19 +90,28 @@ namespace transportProtocol{
                         srcPort = labels[2];
                         dstPort = labels[3];
                         
+                        //controle de fluxo até liberar o time out
+                        if(windowSize < 0){
+                            Thread.Sleep(1000);
+                        }
+
                         if(this.typeConn == 1){
                         
                             if(ackSyn == "000"){
                                 labels.Insert(4, seq.ToString());
-                                labels.Insert(5, ackSyn);
+                                labels.Insert(5, windowSize.ToString());
+                                labels.Insert(6, ackSyn);
                             }
-                            
                             else{
                                 seq = Convert.ToInt32(labels[4])+1;
-                                ackSyn = labels[5];
-                            } 
-                            if(labels.Count > 6){
-                                foreach (String s in (labels.GetRange(6, labels.Count-6))){
+                                windowSize = Convert.ToInt32(labels[5]);
+                                windowSize += 100;
+                                ackSyn = labels[6];
+                            }
+
+                            if(labels.Count > 7){
+                                data = "";
+                                foreach (String s in (labels.GetRange(7, labels.Count-7))){
                                     data += s+" ";
                                 }
                             }
@@ -112,7 +122,7 @@ namespace transportProtocol{
                                     Console.WriteLine("send to bottom layer");
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+ackSyn);
+                                          +seq+" "+windowSize+" "+ackSyn);
                                     wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
@@ -120,20 +130,22 @@ namespace transportProtocol{
                                     Console.WriteLine("send to bottom layer");
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"000");
+                                          +seq+" "+windowSize+" 000");
                                     wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
                             }
                         }else{
-                            labels.Insert(4, ((labels.GetRange(4, labels.Count-4)).Count).ToString());
+                            //bypass
+                            segSize = (int)(new System.IO.FileInfo(@"../transTop.txt")).Length;
+                            labels.Insert(4, segSize.ToString());
                             if(labels.Count > 5){
+                                data = "";
                                 foreach (String s in (labels.GetRange(5, labels.Count-5))){
                                     data += s+" ";
                                 }
                             }
                             
-                            //bypass
                             Console.WriteLine("send to bottom layer");
                             PDU = (srcIP+" "+dstIP+" "
                                   +srcPort+" "+dstPort+" "
@@ -158,12 +170,20 @@ namespace transportProtocol{
                         dstIP= labels[1];
                         srcPort = labels[2];
                         dstPort = labels[3];
+                        windowSize = Convert.ToInt32(labels[5]);
+                        windowSize -= 100;
+
+                        //controle de fluxo até o time out
+                        if(windowSize < 0){
+                            Thread.Sleep(1000);
+                        }
 
                         if(this.typeConn == 1){                          
                             seq = Convert.ToInt32(labels[4])+1;
-                            ackSyn = labels[5];
-                            if(labels.Count > 6){
-                                foreach (String s in (labels.GetRange(6, labels.Count-6))){
+                            ackSyn = labels[6];
+                            if(labels.Count > 7){
+                                data = "";
+                                foreach (String s in (labels.GetRange(7, labels.Count-7))){
                                     data += s+" ";
                                 }
                             }
@@ -173,7 +193,7 @@ namespace transportProtocol{
                                 case "001"://SYN-ACK
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"010");
+                                          +seq+" "+windowSize+" 010");
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);
@@ -182,7 +202,7 @@ namespace transportProtocol{
                                 case "010"://ACK
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"010"+" "+data);
+                                          +seq+" "+windowSize+" 010"+" "+data);
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../appDown.txt");
                                     wr.WriteLine(PDU);
@@ -191,7 +211,7 @@ namespace transportProtocol{
                                 case "011":
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"100");
+                                          +seq+" "+windowSize+" 100");
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);
@@ -200,13 +220,13 @@ namespace transportProtocol{
                                 case "100":
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"101");
+                                          +seq+" "+windowSize+" 101");
                                     Console.WriteLine("Fim Connection layer");
                                     wr = new StreamWriter(@"../finLogout.txt");
                                     wr.WriteLine(PDU);
                                     wr.Close();
 
-                                    StreamWriter transDownClean = new StreamWriter(@"../transDown.txt");
+                                    transDownClean = new StreamWriter(@"../transDown.txt");
                                     transDownClean.Flush();
                                     transDownClean.Close();
 
@@ -215,7 +235,7 @@ namespace transportProtocol{
                                 default: //00 - SYN
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+"001");
+                                          +seq+" "+windowSize+" 001");
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);
@@ -223,9 +243,11 @@ namespace transportProtocol{
                                 break;
                             }
                         }else{                           
-                            
-                            labels.Insert(4, ((labels.GetRange(4, labels.Count-4)).Count).ToString());
+                            //bypass
+                            segSize = (int)(new System.IO.FileInfo(@"../transDown.txt")).Length;
+                            labels.Insert(4, segSize.ToString());
                             if(labels.Count > 5){
+                                data = "";
                                 foreach (String s in (labels.GetRange(5, labels.Count-5))){
                                     data += s+" ";
                                 }
@@ -242,7 +264,7 @@ namespace transportProtocol{
                         transDown.Close();
                         
                         //limpa o arquivo
-                        StreamWriter transDownClean = new StreamWriter(@"../transDown.txt");
+                        transDownClean = new StreamWriter(@"../transDown.txt");
                         transDownClean.Flush();
                         transDownClean.Close();
                     }
