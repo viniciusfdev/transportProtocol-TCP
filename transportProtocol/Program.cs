@@ -51,8 +51,6 @@ namespace transportProtocol{
         //**TCP PDU EXAMPLE TEST*/
         //192.162.1.5 128.50.13.10 500 200 | DADO
 
-        //**UDP PDU EXAMPLE TEST*/
-        //192.162.1.5 128.50.13.10 500 200 10 00 | DADO
         public TransportEngine(int typeConn){
             this.typeConn = typeConn;
         }
@@ -77,6 +75,10 @@ namespace transportProtocol{
                         StreamWriter logoutClean = new StreamWriter(@"../logout.txt");
                         logoutClean.Flush();
                         logoutClean.Close();
+
+                        if(typeConn != 1){
+                            System.Environment.Exit(0);
+                        }
                     }
                     if(new System.IO.FileInfo(@"../transTop.txt").Length > 0){
                         Console.WriteLine("Receive from top layer");
@@ -96,18 +98,9 @@ namespace transportProtocol{
                         }
 
                         if(this.typeConn == 1){
-                        
-                            if(ackSyn == "000"){
-                                labels.Insert(4, seq.ToString());
-                                labels.Insert(5, windowSize.ToString());
-                                labels.Insert(6, ackSyn);
-                            }
-                            else{
-                                seq = Convert.ToInt32(labels[4])+1;
-                                windowSize = Convert.ToInt32(labels[5]);
-                                windowSize += 100;
-                                ackSyn = labels[6];
-                            }
+                            labels.Insert(4, seq.ToString());
+                            labels.Insert(5, windowSize.ToString());
+                            labels.Insert(6, ackSyn);
 
                             if(labels.Count > 7){
                                 data = "";
@@ -170,8 +163,7 @@ namespace transportProtocol{
                         dstIP= labels[1];
                         srcPort = labels[2];
                         dstPort = labels[3];
-                        windowSize = Convert.ToInt32(labels[5]);
-                        windowSize -= 100;
+                        
 
                         //controle de fluxo até o time out
                         if(windowSize < 0){
@@ -179,6 +171,8 @@ namespace transportProtocol{
                         }
 
                         if(this.typeConn == 1){                          
+                            windowSize = Convert.ToInt32(labels[5]);
+                            windowSize -= 100;
                             seq = Convert.ToInt32(labels[4])+1;
                             ackSyn = labels[6];
                             if(labels.Count > 7){
@@ -201,8 +195,7 @@ namespace transportProtocol{
                                 break;
                                 case "010"://ACK
                                     PDU = (srcIP+" "+dstIP+" "
-                                          +srcPort+" "+dstPort+" "
-                                          +seq+" "+windowSize+" 010"+" "+data);
+                                          +srcPort+" "+dstPort+" "+data);
                                     Console.WriteLine("send to bottom layer");
                                     wr = new StreamWriter(@"../appDown.txt");
                                     wr.WriteLine(PDU);
@@ -245,7 +238,9 @@ namespace transportProtocol{
                         }else{                           
                             //bypass
                             segSize = (int)(new System.IO.FileInfo(@"../transDown.txt")).Length;
+                            labels.RemoveAt(4);
                             labels.Insert(4, segSize.ToString());
+                            
                             if(labels.Count > 5){
                                 data = "";
                                 foreach (String s in (labels.GetRange(5, labels.Count-5))){
@@ -256,7 +251,7 @@ namespace transportProtocol{
                             PDU = (srcIP+" "+dstIP+" "
                                   +srcPort+" "+dstPort+" "
                                   +segSize+" "+data);
-                            Console.WriteLine("send to bottom layer");
+                            Console.WriteLine("send to top layer");
                             wr = new StreamWriter(@"../appDown.txt");
                             wr.WriteLine(PDU);
                             wr.Close();
