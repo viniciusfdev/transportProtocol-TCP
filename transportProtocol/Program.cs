@@ -48,7 +48,7 @@ namespace transportProtocol{
         //100 = FIN ACK+ SYN
         //101 = FIN ACK
         
-        //**TCP PDU EXAMPLE TEST*/
+        //**PDU EXAMPLE TEST*/
         //192.162.1.5 128.50.13.10 500 200 | DADO
 
         public TransportEngine(int typeConn){
@@ -115,7 +115,7 @@ namespace transportProtocol{
                                     Console.WriteLine("send to bottom layer");
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+windowSize+" "+ackSyn);
+                                          +seq+" "+windowSize+" "+ackSyn+" "+data);
                                     wr.WriteLine(PDU);
                                     wr.Close();
                                 break;
@@ -164,6 +164,7 @@ namespace transportProtocol{
                         srcPort = labels[2];
                         dstPort = labels[3];
                         
+                        windowSize += 100;
 
                         //controle de fluxo até o time out
                         if(windowSize < 0){
@@ -172,7 +173,6 @@ namespace transportProtocol{
 
                         if(this.typeConn == 1){                          
                             windowSize = Convert.ToInt32(labels[5]);
-                            windowSize -= 100;
                             seq = Convert.ToInt32(labels[4])+1;
                             ackSyn = labels[6];
                             if(labels.Count > 7){
@@ -185,6 +185,7 @@ namespace transportProtocol{
                             //three hand shake control
                             switch(ackSyn){
                                 case "001"://SYN-ACK
+                                    windowSize -= 100;
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" 010");
@@ -202,6 +203,7 @@ namespace transportProtocol{
                                     wr.Close();
                                 break;
                                 case "011":
+                                    windowSize -= 100;
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" 100");
@@ -226,6 +228,7 @@ namespace transportProtocol{
                                     System.Environment.Exit(0);
                                 break;
                                 default: //00 - SYN
+                                    windowSize -= 100;
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" 001");
