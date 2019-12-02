@@ -45,11 +45,11 @@ namespace transportProtocol{
         //001 = SYN-ACK server
         //010 = ACK client
         //011 = FIM SYN
-        //100 = FIN ACK+ SYN
-        //101 = FIN ACK
+        //100 = FIM ACK+ SYN
+        //101 = FIM ACK
         
         //**PDU EXAMPLE TEST*/
-        //192.162.1.5 128.50.13.10 500 200 | DADO
+        //192.162.1.5 128.50.13.10 500 200 DADO
 
         public TransportEngine(int typeConn){
             this.typeConn = typeConn;
@@ -61,7 +61,6 @@ namespace transportProtocol{
                 while(true){
                     Console.WriteLine("Listening");
                     if(new System.IO.FileInfo(@"../logout.txt").Length > 0){
-                        Console.WriteLine("Initiate fin conn");
                         StreamWriter wr = new StreamWriter(@"../redeTop.txt");
                         String PDU = "";
                         windowSize -= 100;
@@ -69,6 +68,8 @@ namespace transportProtocol{
                         PDU = (srcIP+" "+dstIP+" "
                                 +srcPort+" "+dstPort+" "
                                 +seq+" "+windowSize+" 011");
+                        
+                        registerLog("SEND FIM-SYN");
                         wr.WriteLine(PDU);
                         wr.Close();
                         
@@ -81,7 +82,6 @@ namespace transportProtocol{
                         }
                     }
                     if(new System.IO.FileInfo(@"../transTop.txt").Length > 0){
-                        Console.WriteLine("Receive from top layer");
                         StreamReader transTop = new StreamReader(@"../transTop.txt");
                         StreamWriter wr = new StreamWriter(@"../redeTop.txt");
                         String PDU = transTop.ReadToEnd();
@@ -112,7 +112,7 @@ namespace transportProtocol{
                             //three hand shake control
                             switch(ackSyn){
                                 case "010":
-                                    Console.WriteLine("send to bottom layer");
+                                    registerLog("SEND DATA");
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" "+ackSyn+" "+data);
@@ -120,7 +120,8 @@ namespace transportProtocol{
                                     wr.Close();
                                 break;
                                 default: //000 - SYN
-                                    Console.WriteLine("send to bottom layer");
+                                    registerLog("INITIATE CONN");
+                                    registerLog("SEND SYN");
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" 000");
@@ -139,7 +140,7 @@ namespace transportProtocol{
                                 }
                             }
                             
-                            Console.WriteLine("send to bottom layer");
+                            registerLog("SEND DATA TO APP");
                             PDU = (srcIP+" "+dstIP+" "
                                   +srcPort+" "+dstPort+" "
                                   +segSize+" "+data);
@@ -154,7 +155,6 @@ namespace transportProtocol{
                         transTopClean.Close();
                     }
                     if(new System.IO.FileInfo(@"../transDown.txt").Length > 0){
-                        Console.WriteLine("Receive from bottom layer");
                         StreamWriter wr;
                         StreamReader transDown = new StreamReader(@"../transDown.txt");
                         String PDU = transDown.ReadToEnd();
@@ -188,8 +188,9 @@ namespace transportProtocol{
                                     windowSize -= 100;
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
-                                          +seq+" "+windowSize+" 010");
-                                    Console.WriteLine("send to bottom layer");
+                                          +seq+" "+windowSize+" 010"+" "+data);
+                                    registerLog("RECEIVE SYN+ACK");
+                                    registerLog("SEND ACK+DATA");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);
                                     wr.Close();
@@ -197,7 +198,8 @@ namespace transportProtocol{
                                 case "010"://ACK
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "+data);
-                                    Console.WriteLine("send to bottom layer");
+                                    registerLog("RECEIVE DATA");
+                                    registerLog("SEND DATA TO APP");
                                     wr = new StreamWriter(@"../appDown.txt");
                                     wr.WriteLine(PDU);
                                     wr.Close();
@@ -207,7 +209,8 @@ namespace transportProtocol{
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" 100");
-                                    Console.WriteLine("send to bottom layer");
+                                    registerLog("RECEIVE FIM SYN");
+                                    registerLog("SEND FIM ACK+SYN");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);
                                     wr.Close();
@@ -216,10 +219,8 @@ namespace transportProtocol{
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" 101");
-                                    Console.WriteLine("Fim Connection layer");
-                                    wr = new StreamWriter(@"../finLogout.txt");
-                                    wr.WriteLine(PDU);
-                                    wr.Close();
+                                    registerLog("RECEIVE FIM+ACK");
+                                    registerLog("FIM ACK & FIM CONN");
 
                                     transDownClean = new StreamWriter(@"../transDown.txt");
                                     transDownClean.Flush();
@@ -232,7 +233,8 @@ namespace transportProtocol{
                                     PDU = (srcIP+" "+dstIP+" "
                                           +srcPort+" "+dstPort+" "
                                           +seq+" "+windowSize+" 001");
-                                    Console.WriteLine("send to bottom layer");
+                                    registerLog("RECEIVE SYN");
+                                    registerLog("SEND SYN+ACK");
                                     wr = new StreamWriter(@"../redeTop.txt");
                                     wr.WriteLine(PDU);
                                     wr.Close();
@@ -254,7 +256,8 @@ namespace transportProtocol{
                             PDU = (srcIP+" "+dstIP+" "
                                   +srcPort+" "+dstPort+" "
                                   +segSize+" "+data);
-                            Console.WriteLine("send to top layer");
+                            registerLog("RECEIVE DATA");
+                            registerLog("SEND TO APP");
                             wr = new StreamWriter(@"../appDown.txt");
                             wr.WriteLine(PDU);
                             wr.Close();
@@ -294,6 +297,8 @@ namespace transportProtocol{
         }
 
         public void registerLog(String msg){
+            if(typeConn == 1) msg = "TCP: "+msg;
+            else msg = "UDP: "+msg;
             DateTime now = DateTime.Now;
             String nowDate = ""+now.Date.Year+"_"+now.Date.Month+"_"+now.Date.Day;
             String fileName = "log_"+nowDate+".txt";
